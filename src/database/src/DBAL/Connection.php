@@ -53,12 +53,13 @@ class Connection implements ServerInfoAwareConnection
     /**
      * Prepare a new SQL statement.
      */
-    public function prepare(string $sql): StatementInterface
+    public function prepare(string $sql): Statement
     {
         try {
-            return $this->createStatement(
-                $this->connection->prepare($sql)
-            );
+            $stmt = $this->connection->prepare($sql);
+            assert($stmt instanceof PDOStatement);
+
+            return new Statement($stmt);
         } catch (PDOException $exception) {
             throw Exception::new($exception);
         }
@@ -71,7 +72,6 @@ class Connection implements ServerInfoAwareConnection
     {
         try {
             $stmt = $this->connection->query($sql);
-
             assert($stmt instanceof PDOStatement);
 
             return new Result($stmt);
@@ -83,10 +83,10 @@ class Connection implements ServerInfoAwareConnection
     /**
      * Get the last insert ID.
      *
-     * @param null|string $name
+     * @param null|mixed $name
      * @return string
      */
-    public function lastInsertId($name = null)
+    public function lastInsertId($name = null): int|string
     {
         try {
             if ($name === null) {
@@ -102,33 +102,43 @@ class Connection implements ServerInfoAwareConnection
     /**
      * Begin a new database transaction.
      */
-    public function beginTransaction()
+    public function beginTransaction(): void
     {
-        return $this->connection->beginTransaction();
+        try {
+            $this->connection->beginTransaction();
+        } catch (PDOException $exception) {
+            throw Exception::new($exception);
+        }
     }
 
     /**
      * Commit a database transaction.
      */
-    public function commit()
+    public function commit(): void
     {
-        return $this->connection->commit();
+        try {
+            $this->connection->commit();
+        } catch (PDOException $exception) {
+            throw Exception::new($exception);
+        }
     }
 
     /**
      * Roll back a database transaction.
      */
-    public function rollBack()
+    public function rollBack(): void
     {
-        return $this->connection->rollBack();
+        try {
+            $this->connection->rollBack();
+        } catch (PDOException $exception) {
+            throw Exception::new($exception);
+        }
     }
 
     /**
      * Wrap quotes around the given input.
-     *
-     * @param string $input
-     * @param string $type
-     * @return string
+     * @param mixed $input
+     * @param mixed $type
      */
     public function quote($input, $type = ParameterType::STRING)
     {
@@ -141,7 +151,7 @@ class Connection implements ServerInfoAwareConnection
      * @return string
      */
     public function getServerVersion()
-    {
+    public function getServerVersion(): string
         return $this->connection->getAttribute(PDO::ATTR_SERVER_VERSION);
     }
 
@@ -154,6 +164,11 @@ class Connection implements ServerInfoAwareConnection
     }
 
     /**
+    public function getNativeConnection()
+    {
+        return $this->connection;
+    }
+
      * Create a new statement instance.
      */
     protected function createStatement(PDOStatement $stmt): Statement
